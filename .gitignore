@@ -1,0 +1,26 @@
+# Local research data and environments are intentionally not public.
+**/data/
+**/deps/
+**/sources/
+**/manifests/
+**/scratch/
+**/compat_rdkit_2024/
+**/__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.env.*
+*.pem
+*.key
+*.pkl
+*.npz
+*.cif
+*.sdf
+*.pdb
+*.zip
+*.tar
+*.gz
+*.part
+outputs/
+.DS_Store
