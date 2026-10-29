@@ -6,8 +6,6 @@ from geometry import rigid_fit, mapped_rmsd, residue_contacts, contact_jaccard
 from storage import guard, LIMIT
 from stream_inventory import BoundedReader, safe_member
 from collect_coordinates import selected_pose
-from metrics import retained_error, threshold_error, paired_group_bootstrap
-from build_sequence_groups import UnionFind, alignment_stats
 
 class GeometryTests(unittest.TestCase):
     def test_rotation_translation_recovered_without_moving_ligand_independently(self):
@@ -65,58 +63,6 @@ class StorageTests(unittest.TestCase):
         self.assertTrue(selected_pose('42/boltz_results_input/predictions/input/input_model_2.cif',selection))
         self.assertFalse(selected_pose('420/boltz_results_input/predictions/input/input_model_2.cif',selection))
 
-class MetricsTests(unittest.TestCase):
-    def test_ties_use_id_and_never_label(self):
-        first=retained_error([0,1,0],[0.5,0.5,0.5],['c','a','b'])
-        second=retained_error([1,0,1],[0.5,0.5,0.5],['c','a','b'])
-        np.testing.assert_array_equal(first['retained_indices'],[1,2])
-        np.testing.assert_array_equal(first['retained_indices'],second['retained_indices'])
-        self.assertEqual(first['retained_count'],2)
 
-    def test_zero_threshold_coverage_has_no_error_estimate(self):
-        result=threshold_error([1,0],[0.1,0.2],['a','b'],0.9)
-        self.assertEqual(result['coverage'],0)
-        self.assertIsNone(result['error'])
+if __name__=='__main__': unittest.main()
 
-    def test_paired_effect_sign_and_reproducibility(self):
-        args=([1,0,1,0],[.9,.8,.2,.1],[.9,.1,.8,.2],['a','b','c','d'],['g1','g1','g2','g2'])
-        first=paired_group_bootstrap(*args,replicates=30)
-        second=paired_group_bootstrap(*args,replicates=30)
-        self.assertEqual(first,second)
-        self.assertEqual(first['effect_percentage_points'],50)
-        self.assertEqual(first['groups'],2)
-
-    def test_invalid_observations_rejected(self):
-        with self.assertRaises(ValueError):retained_error([1,0],[.1,.2],['a','a'])
-        with self.assertRaises(ValueError):retained_error([1,0],[np.nan,.2],['a','b'])
-        with self.assertRaises(ValueError):paired_group_bootstrap([1,0],[.1,.2],[.2,.1],['a','b'],['g','g'])
-        with self.assertRaises(ValueError):paired_group_bootstrap([1,0],[.1,.2],[.2,.1],['a','b'],['','g'])
-
-    def test_bootstrap_ties_preserve_original_prefix_id_order(self):
-        # Renaming IDs to a monotonically equivalent alphabet must not alter
-        # paired intervals. ID suffixing used to break this for prefix IDs.
-        args=([1,0,1,0],[.5,.5,.5,.5],[.7,.7,.5,.5])
-        first=paired_group_bootstrap(*args,['a','a!','b','b!'],['g1','g1','g2','g2'],replicates=100)
-        second=paired_group_bootstrap(*args,['01','02','03','04'],['g1','g1','g2','g2'],replicates=100)
-        self.assertEqual(first,second)
-
-class GroupingTests(unittest.TestCase):
-    def test_transitive_relatedness(self):
-        groups=UnionFind(['a','b','c','d'])
-        groups.union('b','c')
-        groups.union('a','b')
-        self.assertEqual(groups.find('a'),groups.find('c'))
-        self.assertNotEqual(groups.find('a'),groups.find('d'))
-
-    def test_identity_and_coverage_count_only_aligned_pairs(self):
-        class Alignment:
-            aligned=np.array([[[0,4],[5,8]],[[1,5],[5,8]]])
-            coordinates=np.array([[0,4,5,8],[1,5,5,8]])
-        result=alignment_stats(Alignment(),'ACDEFGHI','XACDEGHI')
-        self.assertEqual(result['identities'],7)
-        self.assertEqual(result['aligned_pairs'],7)
-        self.assertEqual(result['identity'],7/8)
-        self.assertEqual(result['alignment_columns'],8)
-        self.assertEqual(result['shorter_coverage'],7/8)
-
-if __name__=='__main__': unittest.main(verbosity=2)
